@@ -157,11 +157,19 @@ php artisan migrate
 
 Model:
 
+app/Models/Product.php
 ```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
 class Product extends Model
 {
-    protected $fillable = ['name','price','qty'];
+    protected $fillable = ['name', 'price', 'qty'];
 }
+
 ```
 
 ---
@@ -173,7 +181,7 @@ php artisan make:import ProductsImport
 php artisan make:export ProductsExport
 ```
 
-ProductsImport.php
+app/Imports/ProductsImport.php
 
 ```php
 class ProductsImport implements ToModel, WithHeadingRow
@@ -189,7 +197,7 @@ class ProductsImport implements ToModel, WithHeadingRow
 }
 ```
 
-ProductsExport.php
+app/Exports/ProductsExport.php
 
 ```php
 class ProductsExport implements FromCollection, WithHeadings
@@ -203,6 +211,12 @@ class ProductsExport implements FromCollection, WithHeadings
     {
         return ['Name','Price','Qty'];
     }
+
+    public function map($product): array
+    {
+        return [$product->name,   $product->price,   $product->qty,    
+        ];
+    }
 }
 ```
 
@@ -215,47 +229,93 @@ php artisan make:controller ProductController
 ```
 
 ```php
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Product;
+use Illuminate\Http\Request;
+use App\Imports\ProductsImport;
+use App\Exports\ProductsExport;
+use Maatwebsite\Excel\Facades\Excel;
+
 class ProductController extends Controller
 {
+    
     public function index()
     {
-        return view('products');
+        return view('products'); // Vue mount page
     }
 
     public function fetch()
     {
-        return response()->json(Product::latest()->get());
+        return response()->json(
+            Product::latest()->get()
+        );
     }
 
     public function store(Request $request)
     {
+        $request->validate([
+            'name'  => 'required',
+            'price' => 'required|numeric',
+            'qty'   => 'required|integer',
+        ]);
+
         Product::create($request->all());
-        return response()->json(['msg'=>'Added']);
+
+        return response()->json([
+            'message' => 'Product Added Successfully'
+        ]);
     }
 
-    public function update(Request $request,$id)
+    public function update(Request $request, $id)
     {
-        Product::findOrFail($id)->update($request->all());
-        return response()->json(['msg'=>'Updated']);
+        $request->validate([
+            'name'  => 'required',
+            'price' => 'required|numeric',
+            'qty'   => 'required|integer',
+        ]);
+
+        $product = Product::findOrFail($id);
+        $product->update($request->all());
+
+        return response()->json([
+            'message' => 'Product Updated Successfully'
+        ]);
     }
 
     public function destroy($id)
     {
         Product::findOrFail($id)->delete();
-        return response()->json(['msg'=>'Deleted']);
+
+        return response()->json([
+            'message' => 'Product Deleted Successfully'
+        ]);
     }
 
     public function import(Request $request)
     {
-        Excel::import(new ProductsImport,$request->file('file'));
-        return response()->json(['msg'=>'Imported']);
+        $request->validate([
+            'file' => 'required|mimes:xlsx,csv'
+        ]);
+
+        Excel::import(new ProductsImport, $request->file('file'));
+
+        return response()->json([
+            'message' => 'Products Imported Successfully'
+        ]);
     }
 
     public function export()
     {
-        return Excel::download(new ProductsExport,'products.xlsx');
+        return Excel::download(
+            new ProductsExport,
+            'products.xlsx'
+        );
     }
 }
+
 ```
 
 ---
@@ -263,6 +323,12 @@ class ProductController extends Controller
 ## STEP 9: Routes
 routes/web.php
 ```php
+
+<?php
+
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ProductController;
+
 Route::get('/products',[ProductController::class,'index']);
 Route::get('/products/list',[ProductController::class,'fetch']);
 Route::post('/products/store',[ProductController::class,'store']);
@@ -393,7 +459,7 @@ name | price | qty
 name    | price | qty
 ---------------------
 Mobile  | 46000 | 1
-Laptop  | 75000 | 2
+Laptop  | 75000 | 1
 ```
 <img width="212" height="109" alt="Screenshot 2025-12-25 122107" src="https://github.com/user-attachments/assets/41e72a8e-963c-42d4-a55d-e34b9c0128d1" />
 

@@ -9,13 +9,17 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 
 class ProductsExport implements FromCollection, WithHeadings, WithMapping
 {
-    // Fetch all products from database
+    /**
+     * Fetch all products.
+     */
     public function collection()
     {
-        return Product::all();
+        return Product::latest()->get();
     }
 
-    // Define Excel header row titles
+    /**
+     * Excel headings.
+     */
     public function headings(): array
     {
         return [
@@ -25,13 +29,15 @@ class ProductsExport implements FromCollection, WithHeadings, WithMapping
         ];
     }
 
-    // Map product fields to Excel columns
+    /**
+     * Map database fields to Excel columns.
+     */
     public function map($product): array
     {
         return [
-            $product->name,   
-            $product->price,  
-            $product->qty,    
+            $product->name,
+            $product->price,
+            $product->qty,
         ];
     }
 }

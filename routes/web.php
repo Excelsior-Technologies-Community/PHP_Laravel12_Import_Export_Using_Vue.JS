@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductController;
 
-// Load product page (Vue UI)
+// Load product page
 Route::get('/products', [ProductController::class, 'index']);
 
 // Fetch product list
@@ -23,3 +23,6 @@ Route::post('/products/import', [ProductController::class, 'import']);
 
 // Export products to Excel
 Route::get('/products/export', [ProductController::class, 'export']);
+
+// Import / Export history
+Route::get('/products/history', [ProductController::class, 'history']);

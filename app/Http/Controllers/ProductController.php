@@ -289,6 +289,7 @@ class ProductController extends Controller
         ]);
     }
 
+
     /**
      * Store product.
      */

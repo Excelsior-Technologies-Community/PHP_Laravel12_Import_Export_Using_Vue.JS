@@ -144,6 +144,7 @@ class ProductsExport implements FromQuery, WithHeadings, WithMapping
         ];
     }
 
+    
     /**
      * Map product to Excel row.
      */

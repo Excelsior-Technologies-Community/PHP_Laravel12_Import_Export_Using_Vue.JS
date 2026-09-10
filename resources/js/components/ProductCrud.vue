@@ -1,14 +1,70 @@
 <template>
+
   <div class="container">
 
-    <!-- ================= PAGE TITLE ================= -->
+    <!-- =========================================================
+         PAGE TITLE
+    ========================================================== -->
 
     <h2 class="title">
       Product Import / Export Manager
     </h2>
 
 
-    <!-- ================= ADD / EDIT PRODUCT ================= -->
+    <!-- =========================================================
+         DASHBOARD STATISTICS
+    ========================================================== -->
+
+    <div class="stats-grid">
+
+      <div class="stat-card total-card">
+        <span>Total Products</span>
+        <strong>
+          {{ statistics.total_products }}
+        </strong>
+      </div>
+
+      <div class="stat-card quantity-card">
+        <span>Total Quantity</span>
+        <strong>
+          {{ statistics.total_quantity }}
+        </strong>
+      </div>
+
+      <div class="stat-card value-card">
+        <span>Inventory Value</span>
+        <strong>
+          ₹ {{ formatNumber(statistics.inventory_value) }}
+        </strong>
+      </div>
+
+      <div class="stat-card stock-card">
+        <span>In Stock</span>
+        <strong>
+          {{ statistics.in_stock }}
+        </strong>
+      </div>
+
+      <div class="stat-card low-card">
+        <span>Low Stock</span>
+        <strong>
+          {{ statistics.low_stock }}
+        </strong>
+      </div>
+
+      <div class="stat-card out-card">
+        <span>Out of Stock</span>
+        <strong>
+          {{ statistics.out_of_stock }}
+        </strong>
+      </div>
+
+    </div>
+
+
+    <!-- =========================================================
+         ADD / EDIT PRODUCT
+    ========================================================== -->
 
     <div class="card">
 
@@ -40,7 +96,6 @@
 
       </div>
 
-
       <div class="btn-group">
 
         <button
@@ -49,7 +104,6 @@
         >
           {{ editId ? 'Update' : 'Add' }}
         </button>
-
 
         <button
           v-if="editId"
@@ -61,7 +115,6 @@
 
       </div>
 
-
       <p
         v-if="message"
         class="msg-success"
@@ -72,14 +125,15 @@
     </div>
 
 
-    <!-- ================= IMPORT / EXPORT ================= -->
+    <!-- =========================================================
+         IMPORT / EXPORT
+    ========================================================== -->
 
     <div class="card">
 
       <h3>
         Import / Export
       </h3>
-
 
       <div class="import-box">
 
@@ -90,35 +144,42 @@
           @change="handleFile"
         >
 
-
         <button
           class="btn success"
           @click="importExcel"
           :disabled="importing"
         >
-          {{ importing ? 'Importing...' : 'Import Excel' }}
+          {{
+            importing
+              ? 'Importing...'
+              : 'Import Excel'
+          }}
         </button>
-
 
         <button
           class="btn info"
           @click="exportExcel"
           :disabled="exporting"
         >
-          {{ exporting ? 'Exporting...' : 'Export Excel' }}
+          {{
+            exporting
+              ? 'Exporting...'
+              : 'Export Filtered Excel'
+          }}
         </button>
 
       </div>
 
-
       <p class="help-text">
-        Supported formats: XLSX and CSV
+        Export respects your current search, filters and sorting.
       </p>
 
     </div>
 
 
-    <!-- ================= IMPORT SUMMARY ================= -->
+    <!-- =========================================================
+         IMPORT SUMMARY
+    ========================================================== -->
 
     <div
       v-if="importSummary"
@@ -129,7 +190,6 @@
         Import Summary
       </h3>
 
-
       <div class="summary-grid">
 
         <div class="summary-box">
@@ -139,7 +199,6 @@
           </strong>
         </div>
 
-
         <div class="summary-box success-box">
           <span>Imported</span>
           <strong>
@@ -147,14 +206,12 @@
           </strong>
         </div>
 
-
         <div class="summary-box duplicate-box">
           <span>Duplicates</span>
           <strong>
             {{ importSummary.duplicates }}
           </strong>
         </div>
-
 
         <div class="summary-box invalid-box">
           <span>Invalid Rows</span>
@@ -165,7 +222,6 @@
 
       </div>
 
-
       <div
         v-if="importSummary.errors.length"
         class="error-section"
@@ -174,7 +230,6 @@
         <h4>
           Import Errors / Skipped Rows
         </h4>
-
 
         <table class="error-table">
 
@@ -188,7 +243,6 @@
             </tr>
 
           </thead>
-
 
           <tbody>
 
@@ -206,6 +260,7 @@
               </td>
 
               <td>
+
                 <span
                   :class="[
                     'error-badge',
@@ -216,6 +271,7 @@
                 >
                   {{ error.type }}
                 </span>
+
               </td>
 
               <td>
@@ -233,15 +289,247 @@
     </div>
 
 
-    <!-- ================= PRODUCT LIST ================= -->
+    <!-- =========================================================
+         PRODUCT FILTERS
+    ========================================================== -->
 
     <div class="card">
 
       <div class="section-header">
 
         <h3>
-          Product List
+          Product Filters
         </h3>
+
+        <button
+          class="btn secondary"
+          @click="clearFilters"
+        >
+          Clear Filters
+        </button>
+
+      </div>
+
+
+      <div class="filter-grid">
+
+        <!-- Search -->
+
+        <div class="filter-field">
+
+          <label>
+            🔎 Search
+          </label>
+
+          <input
+            type="text"
+            v-model="filters.search"
+            @input="debouncedLoadProducts"
+            placeholder="Search product name or ID"
+          >
+
+        </div>
+
+
+        <!-- Minimum Price -->
+
+        <div class="filter-field">
+
+          <label>
+            Min Price
+          </label>
+
+          <input
+            type="number"
+            v-model="filters.min_price"
+            @change="applyFilters"
+            min="0"
+            placeholder="Min price"
+          >
+
+        </div>
+
+
+        <!-- Maximum Price -->
+
+        <div class="filter-field">
+
+          <label>
+            Max Price
+          </label>
+
+          <input
+            type="number"
+            v-model="filters.max_price"
+            @change="applyFilters"
+            min="0"
+            placeholder="Max price"
+          >
+
+        </div>
+
+
+        <!-- Stock -->
+
+        <div class="filter-field">
+
+          <label>
+            Stock Status
+          </label>
+
+          <select
+            v-model="filters.stock_status"
+            @change="applyFilters"
+          >
+
+            <option value="">
+              All Stock
+            </option>
+
+            <option value="in_stock">
+              In Stock
+            </option>
+
+            <option value="low_stock">
+              Low Stock
+            </option>
+
+            <option value="out_of_stock">
+              Out of Stock
+            </option>
+
+          </select>
+
+        </div>
+
+
+        <!-- Sort By -->
+
+        <div class="filter-field">
+
+          <label>
+            Sort By
+          </label>
+
+          <select
+            v-model="filters.sort_by"
+            @change="applyFilters"
+          >
+
+            <option value="id">
+              ID
+            </option>
+
+            <option value="name">
+              Name
+            </option>
+
+            <option value="price">
+              Price
+            </option>
+
+            <option value="qty">
+              Quantity
+            </option>
+
+            <option value="created_at">
+              Created Date
+            </option>
+
+          </select>
+
+        </div>
+
+
+        <!-- Direction -->
+
+        <div class="filter-field">
+
+          <label>
+            Direction
+          </label>
+
+          <select
+            v-model="filters.sort_direction"
+            @change="applyFilters"
+          >
+
+            <option value="asc">
+              Ascending
+            </option>
+
+            <option value="desc">
+              Descending
+            </option>
+
+          </select>
+
+        </div>
+
+
+        <!-- Per Page -->
+
+        <div class="filter-field">
+
+          <label>
+            Per Page
+          </label>
+
+          <select
+            v-model="filters.per_page"
+            @change="applyFilters"
+          >
+
+            <option :value="5">
+              5
+            </option>
+
+            <option :value="10">
+              10
+            </option>
+
+            <option :value="20">
+              20
+            </option>
+
+            <option :value="50">
+              50
+            </option>
+
+          </select>
+
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- =========================================================
+         PRODUCT LIST
+    ========================================================== -->
+
+    <div class="card">
+
+      <div class="section-header">
+
+        <div>
+
+          <h3>
+            Product List
+          </h3>
+
+          <p class="result-text">
+            Showing
+            {{ pagination.from || 0 }}
+            -
+            {{ pagination.to || 0 }}
+            of
+            {{ pagination.total || 0 }}
+            products
+          </p>
+
+        </div>
 
         <button
           class="btn refresh"
@@ -253,16 +541,70 @@
       </div>
 
 
+      <!-- Bulk Action -->
+
+      <div
+        v-if="selectedProducts.length"
+        class="bulk-bar"
+      >
+
+        <span>
+          {{ selectedProducts.length }}
+          product(s) selected
+        </span>
+
+        <button
+          class="btn danger"
+          @click="bulkDelete"
+        >
+          Delete Selected
+        </button>
+
+      </div>
+
+
       <table>
 
         <thead>
 
           <tr>
-            <th>#</th>
-            <th>Name</th>
-            <th>Price</th>
-            <th>Qty</th>
-            <th>Action</th>
+
+            <th>
+              <input
+                type="checkbox"
+                :checked="allSelected"
+                @change="toggleSelectAll"
+              >
+            </th>
+
+            <th>
+              #
+            </th>
+
+            <th>
+              ID
+            </th>
+
+            <th>
+              Name
+            </th>
+
+            <th>
+              Price
+            </th>
+
+            <th>
+              Qty
+            </th>
+
+            <th>
+              Stock
+            </th>
+
+            <th>
+              Action
+            </th>
+
           </tr>
 
         </thead>
@@ -271,12 +613,26 @@
         <tbody>
 
           <tr
-            v-for="(product, index) in products"
+            v-for="product in products"
             :key="product.id"
           >
 
             <td>
-              {{ index + 1 }}
+
+              <input
+                type="checkbox"
+                :value="product.id"
+                v-model="selectedProducts"
+              >
+
+            </td>
+
+            <td>
+              {{ getRowNumber(product) }}
+            </td>
+
+            <td>
+              {{ product.id }}
             </td>
 
             <td>
@@ -293,13 +649,25 @@
 
             <td>
 
+              <span
+                :class="[
+                  'stock-badge',
+                  getStockClass(product.qty)
+                ]"
+              >
+                {{ getStockLabel(product.qty) }}
+              </span>
+
+            </td>
+
+            <td>
+
               <button
                 class="btn warning"
                 @click="editProduct(product)"
               >
                 Edit
               </button>
-
 
               <button
                 class="btn danger"
@@ -316,7 +684,7 @@
           <tr v-if="products.length === 0">
 
             <td
-              colspan="5"
+              colspan="8"
               class="empty"
             >
               No products found
@@ -328,10 +696,36 @@
 
       </table>
 
+
+      <!-- =======================================================
+           PAGINATION
+      ======================================================== -->
+
+      <div
+        v-if="pagination.last_page > 1"
+        class="pagination"
+      >
+
+        <button
+          v-for="page in paginationPages"
+          :key="page"
+          class="page-btn"
+          :class="{
+            active: page === pagination.current_page
+          }"
+          @click="goToPage(page)"
+        >
+          {{ page }}
+        </button>
+
+      </div>
+
     </div>
 
 
-    <!-- ================= IMPORT / EXPORT HISTORY ================= -->
+    <!-- =========================================================
+         IMPORT / EXPORT HISTORY
+    ========================================================== -->
 
     <div class="card">
 
@@ -340,7 +734,6 @@
         <h3>
           Import / Export History
         </h3>
-
 
         <button
           class="btn refresh"
@@ -352,20 +745,104 @@
       </div>
 
 
+      <!-- History Filters -->
+
+      <div class="history-filter-grid">
+
+        <input
+          type="text"
+          v-model="historyFilters.search"
+          @input="loadHistory"
+          placeholder="Search file/status"
+        >
+
+        <select
+          v-model="historyFilters.operation"
+          @change="loadHistory"
+        >
+
+          <option value="">
+            All Operations
+          </option>
+
+          <option value="import">
+            Import
+          </option>
+
+          <option value="export">
+            Export
+          </option>
+
+        </select>
+
+        <select
+          v-model="historyFilters.status"
+          @change="loadHistory"
+        >
+
+          <option value="">
+            All Status
+          </option>
+
+          <option value="success">
+            Success
+          </option>
+
+          <option value="partial">
+            Partial
+          </option>
+
+          <option value="failed">
+            Failed
+          </option>
+
+        </select>
+
+      </div>
+
+
       <table>
 
         <thead>
 
           <tr>
-            <th>#</th>
-            <th>Operation</th>
-            <th>File Name</th>
-            <th>Total</th>
-            <th>Success</th>
-            <th>Duplicates</th>
-            <th>Invalid</th>
-            <th>Status</th>
-            <th>Date</th>
+
+            <th>
+              #
+            </th>
+
+            <th>
+              Operation
+            </th>
+
+            <th>
+              File Name
+            </th>
+
+            <th>
+              Total
+            </th>
+
+            <th>
+              Success
+            </th>
+
+            <th>
+              Duplicates
+            </th>
+
+            <th>
+              Invalid
+            </th>
+
+            <th>
+              Status
+            </th>
+
+            <th>
+              Date
+            </th>
+
           </tr>
 
         </thead>
@@ -382,8 +859,8 @@
               {{ index + 1 }}
             </td>
 
-
             <td>
+
               <span
                 :class="[
                   'operation-badge',
@@ -394,33 +871,28 @@
               >
                 {{ item.operation.toUpperCase() }}
               </span>
-            </td>
 
+            </td>
 
             <td>
               {{ item.file_name || '-' }}
             </td>
 
-
             <td>
               {{ item.total_records }}
             </td>
-
 
             <td>
               {{ item.successful_records }}
             </td>
 
-
             <td>
               {{ item.duplicate_records }}
             </td>
 
-
             <td>
               {{ item.invalid_records }}
             </td>
-
 
             <td>
 
@@ -434,7 +906,6 @@
               </span>
 
             </td>
-
 
             <td>
               {{ formatDate(item.created_at) }}
@@ -461,6 +932,7 @@
     </div>
 
   </div>
+
 </template>
 
 
@@ -474,15 +946,95 @@ export default {
 
     return {
 
+      /*
+      |--------------------------------------------------------------------------
+      | Products
+      |--------------------------------------------------------------------------
+      */
+
       products: [],
+
+      selectedProducts: [],
+
+      /*
+      |--------------------------------------------------------------------------
+      | Pagination
+      |--------------------------------------------------------------------------
+      */
+
+      pagination: {
+        current_page: 1,
+        last_page: 1,
+        per_page: 5,
+        total: 0,
+        from: 0,
+        to: 0
+      },
+
+      /*
+      |--------------------------------------------------------------------------
+      | Dashboard Statistics
+      |--------------------------------------------------------------------------
+      */
+
+      statistics: {
+        total_products: 0,
+        total_quantity: 0,
+        inventory_value: 0,
+        in_stock: 0,
+        low_stock: 0,
+        out_of_stock: 0
+      },
+
+      /*
+      |--------------------------------------------------------------------------
+      | Product Filters
+      |--------------------------------------------------------------------------
+      */
+
+      filters: {
+
+        search: '',
+
+        min_price: '',
+
+        max_price: '',
+
+        stock_status: '',
+
+        sort_by: 'id',
+
+        sort_direction: 'asc',
+
+        per_page: 5
+
+      },
+
+      /*
+      |--------------------------------------------------------------------------
+      | History
+      |--------------------------------------------------------------------------
+      */
 
       history: [],
 
+      historyFilters: {
+
+        search: '',
+
+        operation: '',
+
+        status: ''
+
+      },
+
+      /*
+      |--------------------------------------------------------------------------
+      | Import
+      |--------------------------------------------------------------------------
+      */
+
       file: null,
-
-      editId: null,
-
-      message: '',
 
       importing: false,
 
@@ -490,13 +1042,81 @@ export default {
 
       importSummary: null,
 
+      /*
+      |--------------------------------------------------------------------------
+      | Product Form
+      |--------------------------------------------------------------------------
+      */
+
+      editId: null,
+
+      message: '',
+
       form: {
+
         name: '',
+
         price: '',
+
         qty: ''
-      }
+
+      },
+
+      /*
+      |--------------------------------------------------------------------------
+      | Search Timer
+      |--------------------------------------------------------------------------
+      */
+
+      searchTimer: null
 
     };
+
+  },
+
+
+  computed: {
+
+    /*
+    |--------------------------------------------------------------------------
+    | Check all visible products selected
+    |--------------------------------------------------------------------------
+    */
+
+    allSelected() {
+
+      return (
+        this.products.length > 0 &&
+        this.selectedProducts.length ===
+          this.products.length
+      );
+
+    },
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Numeric pagination buttons
+    |--------------------------------------------------------------------------
+    */
+
+    paginationPages() {
+
+      const pages = [];
+
+      for (
+        let i = 1;
+        i <= this.pagination.last_page;
+        i++
+      ) {
+
+        pages.push(i);
+
+      }
+
+      return pages;
+
+    }
 
   },
 
@@ -518,20 +1138,283 @@ export default {
     |--------------------------------------------------------------------------
     */
 
-    loadProducts() {
+    loadProducts(page = 1) {
 
       axios
-        .get('/products/list')
+        .get('/products/list', {
+
+          params: {
+
+            search:
+              this.filters.search,
+
+            min_price:
+              this.filters.min_price,
+
+            max_price:
+              this.filters.max_price,
+
+            stock_status:
+              this.filters.stock_status,
+
+            sort_by:
+              this.filters.sort_by,
+
+            sort_direction:
+              this.filters.sort_direction,
+
+            per_page:
+              this.filters.per_page,
+
+            page: page
+
+          }
+
+        })
         .then(res => {
 
-          this.products = res.data;
+          const data = res.data;
+
+          this.products =
+            data.products.data;
+
+          this.pagination = {
+
+            current_page:
+              data.products.current_page,
+
+            last_page:
+              data.products.last_page,
+
+            per_page:
+              data.products.per_page,
+
+            total:
+              data.products.total,
+
+            from:
+              data.products.from,
+
+            to:
+              data.products.to
+
+          };
+
+          this.statistics =
+            data.statistics;
+
+          /*
+          | Remove selected IDs that no longer exist
+          */
+
+          const visibleIds =
+            this.products.map(
+              product => product.id
+            );
+
+          this.selectedProducts =
+            this.selectedProducts.filter(
+              id =>
+                visibleIds.includes(id)
+            );
 
         })
         .catch(error => {
 
-          console.error(error);
+          console.error(
+            'PRODUCT LOAD ERROR:',
+            error
+          );
 
         });
+
+    },
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Search debounce
+    |--------------------------------------------------------------------------
+    */
+
+    debouncedLoadProducts() {
+
+      clearTimeout(
+        this.searchTimer
+      );
+
+      this.searchTimer =
+        setTimeout(() => {
+
+          this.loadProducts(1);
+
+        }, 400);
+
+    },
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Apply Filters
+    |--------------------------------------------------------------------------
+    */
+
+    applyFilters() {
+
+      this.selectedProducts = [];
+
+      this.loadProducts(1);
+
+    },
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Clear Filters
+    |--------------------------------------------------------------------------
+    */
+
+    clearFilters() {
+
+      this.filters = {
+
+        search: '',
+
+        min_price: '',
+
+        max_price: '',
+
+        stock_status: '',
+
+        sort_by: 'id',
+
+        sort_direction: 'asc',
+
+        per_page: 5
+
+      };
+
+      this.selectedProducts = [];
+
+      this.loadProducts(1);
+
+    },
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Pagination
+    |--------------------------------------------------------------------------
+    */
+
+    goToPage(page) {
+
+      if (
+        page < 1 ||
+        page > this.pagination.last_page
+      ) {
+        return;
+      }
+
+      this.selectedProducts = [];
+
+      this.loadProducts(page);
+
+      window.scrollTo({
+
+        top: 0,
+
+        behavior: 'smooth'
+
+      });
+
+    },
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Row Number
+    |--------------------------------------------------------------------------
+    */
+
+    getRowNumber(product) {
+
+      return (
+        (this.pagination.current_page - 1) *
+          this.pagination.per_page
+      ) +
+        this.products.indexOf(product) +
+        1;
+
+    },
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Dashboard number formatting
+    |--------------------------------------------------------------------------
+    */
+
+    formatNumber(value) {
+
+      return Number(value || 0)
+        .toLocaleString(
+          'en-IN',
+          {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          }
+        );
+
+    },
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Stock Label
+    |--------------------------------------------------------------------------
+    */
+
+    getStockLabel(qty) {
+
+      if (Number(qty) === 0) {
+
+        return 'Out of Stock';
+
+      }
+
+      if (Number(qty) <= 5) {
+
+        return 'Low Stock';
+
+      }
+
+      return 'In Stock';
+
+    },
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Stock CSS class
+    |--------------------------------------------------------------------------
+    */
+
+    getStockClass(qty) {
+
+      if (Number(qty) === 0) {
+
+        return 'stock-out';
+
+      }
+
+      if (Number(qty) <= 5) {
+
+        return 'stock-low';
+
+      }
+
+      return 'stock-in';
 
     },
 
@@ -546,51 +1429,62 @@ export default {
 
       if (!this.form.name.trim()) {
 
-        alert('Product name is required.');
+        alert(
+          'Product name is required.'
+        );
 
         return;
 
       }
-
 
       if (
         this.form.price === '' ||
         Number(this.form.price) < 0
       ) {
 
-        alert('Please enter a valid price.');
+        alert(
+          'Please enter a valid price.'
+        );
 
         return;
 
       }
-
 
       if (
         this.form.qty === '' ||
-        Number(this.form.qty) < 0
+        Number(this.form.qty) < 0 ||
+        !Number.isInteger(
+          Number(this.form.qty)
+        )
       ) {
 
-        alert('Please enter a valid quantity.');
+        alert(
+          'Please enter a valid quantity.'
+        );
 
         return;
 
       }
-
 
       const url = this.editId
         ? `/products/update/${this.editId}`
         : '/products/store';
 
-
       axios
-        .post(url, this.form)
+        .post(
+          url,
+          this.form
+        )
         .then(res => {
 
-          this.message = res.data.message;
+          this.message =
+            res.data.message;
 
           this.resetForm();
 
-          this.loadProducts();
+          this.loadProducts(
+            this.pagination.current_page
+          );
 
           setTimeout(() => {
 
@@ -601,7 +1495,9 @@ export default {
         })
         .catch(error => {
 
-          if (error.response?.data?.errors) {
+          if (
+            error.response?.data?.errors
+          ) {
 
             const errors =
               error.response.data.errors;
@@ -614,7 +1510,9 @@ export default {
 
           } else {
 
-            alert('Something went wrong.');
+            alert(
+              'Something went wrong.'
+            );
 
           }
 
@@ -631,21 +1529,28 @@ export default {
 
     editProduct(product) {
 
-      this.editId = product.id;
+      this.editId =
+        product.id;
 
       this.form = {
 
-        name: product.name,
+        name:
+          product.name,
 
-        price: product.price,
+        price:
+          product.price,
 
-        qty: product.qty
+        qty:
+          product.qty
 
       };
 
       window.scrollTo({
+
         top: 0,
+
         behavior: 'smooth'
+
       });
 
     },
@@ -669,14 +1574,24 @@ export default {
 
       }
 
-
       axios
-        .delete(`/products/delete/${id}`)
+        .delete(
+          `/products/delete/${id}`
+        )
         .then(res => {
 
-          this.message = res.data.message;
+          this.message =
+            res.data.message;
 
-          this.loadProducts();
+          this.selectedProducts =
+            this.selectedProducts.filter(
+              selectedId =>
+                selectedId !== id
+            );
+
+          this.loadProducts(
+            this.pagination.current_page
+          );
 
           setTimeout(() => {
 
@@ -689,7 +1604,105 @@ export default {
 
           console.error(error);
 
-          alert('Unable to delete product.');
+          alert(
+            'Unable to delete product.'
+          );
+
+        });
+
+    },
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Select All
+    |--------------------------------------------------------------------------
+    */
+
+    toggleSelectAll(event) {
+
+      if (event.target.checked) {
+
+        this.selectedProducts =
+          this.products.map(
+            product =>
+              product.id
+          );
+
+      } else {
+
+        this.selectedProducts = [];
+
+      }
+
+    },
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Bulk Delete
+    |--------------------------------------------------------------------------
+    */
+
+    bulkDelete() {
+
+      if (
+        this.selectedProducts.length === 0
+      ) {
+
+        alert(
+          'Please select at least one product.'
+        );
+
+        return;
+
+      }
+
+      if (
+        !confirm(
+          `Are you sure you want to delete ${this.selectedProducts.length} selected product(s)?`
+        )
+      ) {
+
+        return;
+
+      }
+
+      axios
+        .post(
+          '/products/bulk-delete',
+          {
+            ids:
+              this.selectedProducts
+          }
+        )
+        .then(res => {
+
+          this.message =
+            res.data.message;
+
+          this.selectedProducts = [];
+
+          this.loadProducts(1);
+
+          setTimeout(() => {
+
+            this.message = '';
+
+          }, 3000);
+
+        })
+        .catch(error => {
+
+          console.error(
+            'BULK DELETE ERROR:',
+            error
+          );
+
+          alert(
+            error.response?.data?.message ||
+            'Unable to delete selected products.'
+          );
 
         });
 
@@ -728,7 +1741,8 @@ export default {
     handleFile(event) {
 
       this.file =
-        event.target.files[0] || null;
+        event.target.files[0] ||
+        null;
 
       this.importSummary = null;
 
@@ -741,96 +1755,79 @@ export default {
     |--------------------------------------------------------------------------
     */
 
-importExcel() {
-    if (!this.file) {
-        alert('Please select an XLSX or CSV file.');
+    importExcel() {
+
+      if (!this.file) {
+
+        alert(
+          'Please select an XLSX or CSV file.'
+        );
+
         return;
-    }
 
-    this.importing = true;
-    this.importSummary = null;
+      }
 
-    const formData = new FormData();
-    formData.append('file', this.file);
+      this.importing = true;
 
-    axios.post('/products/import', formData)
-        .then(res => {
-            console.log('IMPORT SUCCESS:', res.data);
+      this.importSummary = null;
 
-            this.message = res.data.message;
-            this.importSummary = res.data.summary;
+      const formData =
+        new FormData();
 
-            this.loadProducts();
-            this.loadHistory();
-
-            this.file = null;
-
-            if (this.$refs.fileInput) {
-                this.$refs.fileInput.value = '';
-            }
-        })
-        .catch(error => {
-            console.error('IMPORT ERROR:', error);
-
-            if (error.response) {
-                console.error('Status:', error.response.status);
-                console.error('Response:', error.response.data);
-                console.error('Message:', error.response.data?.message);
-                console.error('Error:', error.response.data?.error);
-                console.error('Exception:', error.response.data?.exception);
-
-                const serverMessage =
-                    error.response.data?.error ||
-                    error.response.data?.message ||
-                    'Import failed.';
-
-                alert(serverMessage);
-            } else {
-                alert('Unable to connect to the server.');
-            }
-
-            this.loadHistory();
-        })
-        .finally(() => {
-            this.importing = false;
-        });
-},   // <-- IMPORTANT: comma here
-
-
-/* =========================================================
-   Export Excel
-========================================================= */
-
-exportExcel() {
-    this.exporting = true;
-
-    window.location.href = '/products/export';
-
-    setTimeout(() => {
-        this.exporting = false;
-        this.loadHistory();
-    }, 1500);
-},
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Load Import/Export History
-    |--------------------------------------------------------------------------
-    */
-
-    loadHistory() {
+      formData.append(
+        'file',
+        this.file
+      );
 
       axios
-        .get('/products/history')
+        .post(
+          '/products/import',
+          formData
+        )
         .then(res => {
 
-          this.history = res.data;
+          this.message =
+            res.data.message;
+
+          this.importSummary =
+            res.data.summary;
+
+          this.loadProducts(1);
+
+          this.loadHistory();
+
+          this.file = null;
+
+          if (
+            this.$refs.fileInput
+          ) {
+
+            this.$refs.fileInput.value =
+              '';
+
+          }
 
         })
         .catch(error => {
 
-          console.error(error);
+          console.error(
+            'IMPORT ERROR:',
+            error
+          );
+
+          const serverMessage =
+            error.response?.data?.error ||
+            error.response?.data?.message ||
+            'Import failed.';
+
+          alert(serverMessage);
+
+          this.loadHistory();
+
+        })
+        .finally(() => {
+
+          this.importing = false;
 
         });
 
@@ -839,19 +1836,147 @@ exportExcel() {
 
     /*
     |--------------------------------------------------------------------------
-    | Status Class
+    | Filtered Excel Export
+    |--------------------------------------------------------------------------
+    */
+
+    exportExcel() {
+
+      this.exporting = true;
+
+      const params =
+        new URLSearchParams();
+
+      if (this.filters.search) {
+
+        params.append(
+          'search',
+          this.filters.search
+        );
+
+      }
+
+      if (
+        this.filters.min_price !== ''
+      ) {
+
+        params.append(
+          'min_price',
+          this.filters.min_price
+        );
+
+      }
+
+      if (
+        this.filters.max_price !== ''
+      ) {
+
+        params.append(
+          'max_price',
+          this.filters.max_price
+        );
+
+      }
+
+      if (
+        this.filters.stock_status
+      ) {
+
+        params.append(
+          'stock_status',
+          this.filters.stock_status
+        );
+
+      }
+
+      params.append(
+        'sort_by',
+        this.filters.sort_by
+      );
+
+      params.append(
+        'sort_direction',
+        this.filters.sort_direction
+      );
+
+      window.location.href =
+        '/products/export?' +
+        params.toString();
+
+      setTimeout(() => {
+
+        this.exporting = false;
+
+        this.loadHistory();
+
+      }, 1500);
+
+    },
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Load History
+    |--------------------------------------------------------------------------
+    */
+
+    loadHistory() {
+
+      axios
+        .get(
+          '/products/history',
+          {
+            params: {
+
+              search:
+                this.historyFilters.search,
+
+              operation:
+                this.historyFilters.operation,
+
+              status:
+                this.historyFilters.status
+
+            }
+          }
+        )
+        .then(res => {
+
+          this.history =
+            res.data;
+
+        })
+        .catch(error => {
+
+          console.error(
+            'HISTORY ERROR:',
+            error
+          );
+
+        });
+
+    },
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | History Status Class
     |--------------------------------------------------------------------------
     */
 
     getStatusClass(status) {
 
-      if (status === 'success') {
+      if (
+        status === 'success'
+      ) {
 
         return 'status-success';
 
       }
 
-      if (status === 'partial') {
+      if (
+        status === 'partial'
+      ) {
 
         return 'status-partial';
 
@@ -876,7 +2001,6 @@ exportExcel() {
 
       }
 
-
       return new Date(date)
         .toLocaleString();
 
@@ -892,23 +2016,24 @@ exportExcel() {
 <style scoped>
 
 /* =========================================================
-   GLOBAL LAYOUT
+   GLOBAL
 ========================================================= */
 
 .container {
 
-  max-width: 1200px;
+  max-width: 1250px;
 
   margin: 30px auto;
 
   padding: 0 15px;
 
-  font-family: Arial, sans-serif;
+  font-family:
+    Arial,
+    sans-serif;
 
   color: #333;
 
 }
-
 
 .title {
 
@@ -917,6 +2042,104 @@ exportExcel() {
   margin-bottom: 30px;
 
   font-size: 30px;
+
+}
+
+
+/* =========================================================
+   DASHBOARD
+========================================================= */
+
+.stats-grid {
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(6, 1fr);
+
+  gap: 15px;
+
+  margin-bottom: 25px;
+
+}
+
+.stat-card {
+
+  padding: 20px;
+
+  border-radius: 10px;
+
+  text-align: center;
+
+  box-shadow:
+    0 2px 10px
+    rgba(0, 0, 0, 0.08);
+
+}
+
+.stat-card span {
+
+  display: block;
+
+  font-size: 13px;
+
+  margin-bottom: 8px;
+
+}
+
+.stat-card strong {
+
+  display: block;
+
+  font-size: 25px;
+
+}
+
+.total-card {
+
+  background: #eef2ff;
+
+  color: #3730a3;
+
+}
+
+.quantity-card {
+
+  background: #ecfeff;
+
+  color: #155e75;
+
+}
+
+.value-card {
+
+  background: #f0fdf4;
+
+  color: #166534;
+
+}
+
+.stock-card {
+
+  background: #eff6ff;
+
+  color: #1d4ed8;
+
+}
+
+.low-card {
+
+  background: #fef3c7;
+
+  color: #92400e;
+
+}
+
+.out-card {
+
+  background: #fee2e2;
+
+  color: #991b1b;
 
 }
 
@@ -936,7 +2159,8 @@ exportExcel() {
   border-radius: 10px;
 
   box-shadow:
-    0 2px 10px rgba(0, 0, 0, 0.08);
+    0 2px 10px
+    rgba(0, 0, 0, 0.08);
 
 }
 
@@ -956,10 +2180,10 @@ exportExcel() {
 
 }
 
-
 input[type="text"],
 input[type="number"],
-input[type="file"] {
+input[type="file"],
+select {
 
   padding: 10px;
 
@@ -970,8 +2194,21 @@ input[type="file"] {
 
   width: 100%;
 
+  background: #fff;
+
 }
 
+label {
+
+  display: block;
+
+  margin-bottom: 7px;
+
+  font-weight: 600;
+
+  font-size: 13px;
+
+}
 
 .btn-group {
 
@@ -1002,13 +2239,11 @@ input[type="file"] {
 
 }
 
-
 .btn:hover {
 
   opacity: 0.9;
 
 }
-
 
 .btn:disabled {
 
@@ -1018,13 +2253,11 @@ input[type="file"] {
 
 }
 
-
 .primary {
 
   background: #4f46e5;
 
 }
-
 
 .secondary {
 
@@ -1032,13 +2265,11 @@ input[type="file"] {
 
 }
 
-
 .success {
 
   background: #16a34a;
 
 }
-
 
 .info {
 
@@ -1046,20 +2277,17 @@ input[type="file"] {
 
 }
 
-
 .warning {
 
   background: #f59e0b;
 
 }
 
-
 .danger {
 
   background: #dc2626;
 
 }
-
 
 .refresh {
 
@@ -1069,7 +2297,7 @@ input[type="file"] {
 
 
 /* =========================================================
-   IMPORT AREA
+   IMPORT
 ========================================================= */
 
 .import-box {
@@ -1084,7 +2312,6 @@ input[type="file"] {
 
 }
 
-
 .help-text {
 
   color: #777;
@@ -1092,6 +2319,28 @@ input[type="file"] {
   font-size: 13px;
 
   margin-top: 10px;
+
+}
+
+
+/* =========================================================
+   FILTERS
+========================================================= */
+
+.filter-grid {
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(4, 1fr);
+
+  gap: 15px;
+
+}
+
+.filter-field {
+
+  min-width: 0;
 
 }
 
@@ -1112,6 +2361,46 @@ input[type="file"] {
 
 }
 
+.result-text {
+
+  color: #777;
+
+  font-size: 13px;
+
+  margin: 5px 0 0;
+
+}
+
+
+/* =========================================================
+   BULK BAR
+========================================================= */
+
+.bulk-bar {
+
+  background: #fef2f2;
+
+  border:
+    1px solid #fecaca;
+
+  padding: 12px;
+
+  border-radius: 7px;
+
+  margin-bottom: 15px;
+
+  display: flex;
+
+  justify-content: space-between;
+
+  align-items: center;
+
+  color: #991b1b;
+
+  font-weight: 600;
+
+}
+
 
 /* =========================================================
    TABLE
@@ -1125,13 +2414,11 @@ table {
 
 }
 
-
 thead {
 
   background: #f3f4f6;
 
 }
-
 
 th,
 td {
@@ -1145,7 +2432,6 @@ td {
 
 }
 
-
 .empty {
 
   text-align: center;
@@ -1153,6 +2439,103 @@ td {
   color: #777;
 
   padding: 25px;
+
+}
+
+
+/* =========================================================
+   STOCK BADGES
+========================================================= */
+
+.stock-badge {
+
+  display: inline-block;
+
+  padding: 5px 9px;
+
+  border-radius: 15px;
+
+  font-size: 11px;
+
+  font-weight: bold;
+
+}
+
+.stock-in {
+
+  background: #dcfce7;
+
+  color: #166534;
+
+}
+
+.stock-low {
+
+  background: #fef3c7;
+
+  color: #92400e;
+
+}
+
+.stock-out {
+
+  background: #fee2e2;
+
+  color: #991b1b;
+
+}
+
+
+/* =========================================================
+   PAGINATION
+========================================================= */
+
+.pagination {
+
+  display: flex;
+
+  justify-content: center;
+
+  flex-wrap: wrap;
+
+  gap: 6px;
+
+  margin-top: 20px;
+
+}
+
+.page-btn {
+
+  min-width: 38px;
+
+  height: 38px;
+
+  border:
+    1px solid #d1d5db;
+
+  background: #fff;
+
+  border-radius: 5px;
+
+  cursor: pointer;
+
+  font-weight: 600;
+
+}
+
+.page-btn:hover {
+
+  background: #f3f4f6;
+
+}
+
+.page-btn.active {
+
+  background: #4f46e5;
+
+  color: #fff;
+
+  border-color: #4f46e5;
 
 }
 
@@ -1189,7 +2572,6 @@ td {
 
 }
 
-
 .summary-box {
 
   padding: 20px;
@@ -1202,7 +2584,6 @@ td {
 
 }
 
-
 .summary-box span {
 
   display: block;
@@ -1213,13 +2594,11 @@ td {
 
 }
 
-
 .summary-box strong {
 
   font-size: 28px;
 
 }
-
 
 .success-box {
 
@@ -1229,7 +2608,6 @@ td {
 
 }
 
-
 .duplicate-box {
 
   background: #fef3c7;
@@ -1237,7 +2615,6 @@ td {
   color: #92400e;
 
 }
-
 
 .invalid-box {
 
@@ -1258,20 +2635,17 @@ td {
 
 }
 
-
 .error-section h4 {
 
   margin-bottom: 10px;
 
 }
 
-
 .error-table {
 
   font-size: 14px;
 
 }
-
 
 .error-badge {
 
@@ -1287,7 +2661,6 @@ td {
 
 }
 
-
 .duplicate-badge {
 
   background: #fef3c7;
@@ -1296,12 +2669,29 @@ td {
 
 }
 
-
 .invalid-badge {
 
   background: #fee2e2;
 
   color: #991b1b;
+
+}
+
+
+/* =========================================================
+   HISTORY FILTER
+========================================================= */
+
+.history-filter-grid {
+
+  display: grid;
+
+  grid-template-columns:
+    2fr 1fr 1fr;
+
+  gap: 10px;
+
+  margin-bottom: 20px;
 
 }
 
@@ -1325,7 +2715,6 @@ td {
 
 }
 
-
 .import-badge {
 
   background: #dbeafe;
@@ -1333,7 +2722,6 @@ td {
   color: #1e40af;
 
 }
-
 
 .export-badge {
 
@@ -1343,7 +2731,6 @@ td {
 
 }
 
-
 .status-success {
 
   background: #dcfce7;
@@ -1352,7 +2739,6 @@ td {
 
 }
 
-
 .status-partial {
 
   background: #fef3c7;
@@ -1360,7 +2746,6 @@ td {
   color: #92400e;
 
 }
-
 
 .status-failed {
 
@@ -1375,6 +2760,24 @@ td {
    RESPONSIVE
 ========================================================= */
 
+@media (max-width: 1100px) {
+
+  .stats-grid {
+
+    grid-template-columns:
+      repeat(3, 1fr);
+
+  }
+
+  .filter-grid {
+
+    grid-template-columns:
+      repeat(2, 1fr);
+
+  }
+
+}
+
 @media (max-width: 768px) {
 
   .form-grid {
@@ -1383,13 +2786,24 @@ td {
 
   }
 
+  .stats-grid {
 
-  .summary-grid {
-
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns:
+      repeat(2, 1fr);
 
   }
 
+  .filter-grid {
+
+    grid-template-columns: 1fr;
+
+  }
+
+  .history-filter-grid {
+
+    grid-template-columns: 1fr;
+
+  }
 
   .import-box {
 
@@ -1398,7 +2812,6 @@ td {
     align-items: stretch;
 
   }
-
 
   table {
 
@@ -1412,8 +2825,13 @@ td {
 
 }
 
-
 @media (max-width: 480px) {
+
+  .stats-grid {
+
+    grid-template-columns: 1fr;
+
+  }
 
   .summary-grid {
 

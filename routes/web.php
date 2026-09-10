@@ -3,26 +3,110 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductController;
 
-// Load product page
-Route::get('/products', [ProductController::class, 'index']);
+/*
+|--------------------------------------------------------------------------
+| Product Page
+|--------------------------------------------------------------------------
+*/
 
-// Fetch product list
-Route::get('/products/list', [ProductController::class, 'fetch']);
+Route::get(
+    '/products',
+    [ProductController::class, 'index']
+);
 
-// Store new product
-Route::post('/products/store', [ProductController::class, 'store']);
+/*
+|--------------------------------------------------------------------------
+| Product List
+|--------------------------------------------------------------------------
+|
+| Search
+| Sorting
+| Pagination
+| Price Filter
+| Stock Filter
+| Statistics
+|
+*/
 
-// Update existing product
-Route::post('/products/update/{id}', [ProductController::class, 'update']);
+Route::get(
+    '/products/list',
+    [ProductController::class, 'fetch']
+);
 
-// Delete product
-Route::delete('/products/delete/{id}', [ProductController::class, 'destroy']);
+/*
+|--------------------------------------------------------------------------
+| Product CRUD
+|--------------------------------------------------------------------------
+*/
 
-// Import products from Excel
-Route::post('/products/import', [ProductController::class, 'import']);
+Route::post(
+    '/products/store',
+    [ProductController::class, 'store']
+);
 
-// Export products to Excel
-Route::get('/products/export', [ProductController::class, 'export']);
+Route::post(
+    '/products/update/{id}',
+    [ProductController::class, 'update']
+);
 
-// Import / Export history
-Route::get('/products/history', [ProductController::class, 'history']);
+Route::delete(
+    '/products/delete/{id}',
+    [ProductController::class, 'destroy']
+);
+
+/*
+|--------------------------------------------------------------------------
+| Bulk Delete
+|--------------------------------------------------------------------------
+*/
+
+Route::post(
+    '/products/bulk-delete',
+    [ProductController::class, 'bulkDelete']
+);
+
+/*
+|--------------------------------------------------------------------------
+| Import
+|--------------------------------------------------------------------------
+*/
+
+Route::post(
+    '/products/import',
+    [ProductController::class, 'import']
+);
+
+/*
+|--------------------------------------------------------------------------
+| Export
+|--------------------------------------------------------------------------
+|
+| Supports:
+| - Search
+| - Price filters
+| - Stock filter
+| - Sorting
+|
+*/
+
+Route::get(
+    '/products/export',
+    [ProductController::class, 'export']
+);
+
+/*
+|--------------------------------------------------------------------------
+| Import / Export History
+|--------------------------------------------------------------------------
+|
+| Supports:
+| - Search
+| - Operation filter
+| - Status filter
+|
+*/
+
+Route::get(
+    '/products/history',
+    [ProductController::class, 'history']
+);

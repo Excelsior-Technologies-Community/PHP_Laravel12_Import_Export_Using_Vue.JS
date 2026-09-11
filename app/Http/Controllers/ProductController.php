@@ -289,6 +289,56 @@ class ProductController extends Controller
         ]);
     }
 
+    /**
+     * Return a small result set for the product search dropdown.
+     */
+    public function suggestions(Request $request)
+    {
+        $search = trim((string) $request->input('search', ''));
+
+        if ($search === '') {
+            return response()->json([]);
+        }
+
+        $products = Product::query()
+            ->where(function ($query) use ($search) {
+                $query->where('name', 'like', '%' . $search . '%');
+
+                if (is_numeric($search)) {
+                    $query->orWhere('id', (int) $search);
+                }
+            })
+            ->orderBy('name')
+            ->limit(8)
+            ->get(['id', 'name', 'price', 'qty']);
+
+        return response()->json($products);
+    }
+
+    /**
+     * Return soft-deleted products for the recycle bin.
+     */
+    public function trash()
+    {
+        return response()->json(
+            Product::onlyTrashed()->latest('deleted_at')->get()
+        );
+    }
+
+    /**
+     * Restore one product from the recycle bin.
+     */
+    public function restore($id)
+    {
+        $product = Product::onlyTrashed()->findOrFail($id);
+        $product->restore();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Product restored successfully.',
+        ]);
+    }
+
 
     /**
      * Store product.
@@ -445,6 +495,19 @@ class ProductController extends Controller
     {
         try {
 
+            $selectedIds = $request->input('ids', []);
+
+            if (!is_array($selectedIds)) {
+                $selectedIds = [$selectedIds];
+            }
+
+            $selectedIds = array_values(array_filter(
+                array_map('intval', $selectedIds),
+                fn ($id) => $id > 0
+            ));
+
+            $hasSelection = $selectedIds !== [];
+
             $filters = [
                 'search' =>
                     trim(
@@ -491,7 +554,11 @@ class ProductController extends Controller
 
             $exportQuery = Product::query();
 
-            if ($filters['search'] !== '') {
+            if ($selectedIds !== []) {
+                $exportQuery->whereIn('id', $selectedIds);
+            }
+
+            if (!$hasSelection && $filters['search'] !== '') {
 
                 $search = $filters['search'];
 
@@ -512,7 +579,7 @@ class ProductController extends Controller
                 });
             }
 
-            if (
+            if (!$hasSelection &&
                 $filters['min_price'] !== null &&
                 $filters['min_price'] !== ''
             ) {
@@ -523,7 +590,7 @@ class ProductController extends Controller
                 );
             }
 
-            if (
+            if (!$hasSelection &&
                 $filters['max_price'] !== null &&
                 $filters['max_price'] !== ''
             ) {
@@ -534,7 +601,8 @@ class ProductController extends Controller
                 );
             }
 
-            switch ($filters['stock_status']) {
+            if (!$hasSelection) {
+                switch ($filters['stock_status']) {
 
                 case 'in_stock':
 
@@ -569,6 +637,7 @@ class ProductController extends Controller
                     );
 
                     break;
+                }
             }
 
             $totalProducts = $exportQuery->count();
@@ -598,7 +667,10 @@ class ProductController extends Controller
             */
 
             return Excel::download(
-                new ProductsExport($filters),
+                new ProductsExport([
+                    ...$filters,
+                    'ids' => $selectedIds,
+                ]),
                 'products.xlsx'
             );
 

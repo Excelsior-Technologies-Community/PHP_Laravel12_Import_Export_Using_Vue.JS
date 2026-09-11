@@ -33,6 +33,11 @@ Route::get(
     [ProductController::class, 'fetch']
 );
 
+Route::get(
+    '/products/suggestions',
+    [ProductController::class, 'suggestions']
+);
+
 /*
 |--------------------------------------------------------------------------
 | Product CRUD
@@ -52,6 +57,16 @@ Route::post(
 Route::delete(
     '/products/delete/{id}',
     [ProductController::class, 'destroy']
+);
+
+Route::get(
+    '/products/trash',
+    [ProductController::class, 'trash']
+);
+
+Route::post(
+    '/products/restore/{id}',
+    [ProductController::class, 'restore']
 );
 
 /*

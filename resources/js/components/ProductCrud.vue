@@ -164,7 +164,9 @@
           {{
             exporting
               ? 'Exporting...'
-              : 'Export Filtered Excel'
+              : selectedProducts.length
+                ? `Export ${selectedProducts.length} Selected`
+                : 'Export Filtered Excel'
           }}
         </button>
 
@@ -306,10 +308,10 @@
           @click="clearFilters"
         >
           Clear Filters
+
         </button>
 
       </div>
-
 
       <div class="filter-grid">
 
@@ -325,8 +327,28 @@
             type="text"
             v-model="filters.search"
             @input="debouncedLoadProducts"
+            @focus="showSuggestions = searchSuggestions.length > 0"
             placeholder="Search product name or ID"
           >
+
+          <div
+            v-if="showSuggestions && searchSuggestions.length"
+            class="suggestions"
+          >
+            <button
+              v-for="suggestion in searchSuggestions"
+              :key="suggestion.id"
+              type="button"
+              class="suggestion-item"
+              @mousedown.prevent="selectSuggestion(suggestion)"
+            >
+              <span>
+                <strong>{{ suggestion.name }}</strong>
+                <small>#{{ suggestion.id }} · Qty {{ suggestion.qty }}</small>
+              </span>
+              <span>₹ {{ Number(suggestion.price).toFixed(2) }}</span>
+            </button>
+          </div>
 
         </div>
 
@@ -543,6 +565,14 @@
 
       <!-- Bulk Action -->
 
+        <button
+          class="btn info"
+          @click="exportSelected"
+          :disabled="exporting"
+        >
+          Export Selected
+        </button>
+
       <div
         v-if="selectedProducts.length"
         class="bulk-bar"
@@ -722,6 +752,26 @@
 
     </div>
 
+    <div
+      v-if="trashProducts.length"
+      class="card trash-card"
+    >
+      <div class="section-header">
+        <div>
+          <h3>Recycle Bin</h3>
+          <p class="result-text">Deleted products can be restored.</p>
+        </div>
+        <button class="btn refresh" @click="loadTrash">Refresh</button>
+      </div>
+
+      <div class="trash-list">
+        <div v-for="product in trashProducts" :key="product.id" class="trash-item">
+          <span><strong>{{ product.name }}</strong><small>#{{ product.id }} · Deleted {{ formatDate(product.deleted_at) }}</small></span>
+          <button class="btn success" @click="restoreProduct(product.id)">Restore</button>
+        </div>
+      </div>
+    </div>
+
 
     <!-- =========================================================
          IMPORT / EXPORT HISTORY
@@ -843,6 +893,10 @@
               Date
             </th>
 
+            <th>
+              Details
+            </th>
+
           </tr>
 
         </thead>
@@ -911,13 +965,34 @@
               {{ formatDate(item.created_at) }}
             </td>
 
+            <td>
+              <button
+                class="icon-btn"
+                title="View details"
+                @click="toggleHistoryDetails(item.id)"
+              >
+                {{ expandedHistoryId === item.id ? '−' : '+' }}
+              </button>
+            </td>
+
           </tr>
+
+          <template v-for="item in history" :key="`details-${item.id}`">
+            <tr
+              v-if="expandedHistoryId === item.id"
+              class="history-details"
+            >
+              <td colspan="10">
+                <pre>{{ item.details || 'No additional details available.' }}</pre>
+              </td>
+            </tr>
+          </template>
 
 
           <tr v-if="history.length === 0">
 
             <td
-              colspan="9"
+              colspan="10"
               class="empty"
             >
               No import/export history found
@@ -955,6 +1030,12 @@ export default {
       products: [],
 
       selectedProducts: [],
+
+      searchSuggestions: [],
+
+      showSuggestions: false,
+
+      trashProducts: [],
 
       /*
       |--------------------------------------------------------------------------
@@ -1018,6 +1099,8 @@ export default {
 
       history: [],
 
+      expandedHistoryId: null,
+
       historyFilters: {
 
         search: '',
@@ -1068,7 +1151,9 @@ export default {
       |--------------------------------------------------------------------------
       */
 
-      searchTimer: null
+      searchTimer: null,
+
+      suggestionTimer: null
 
     };
 
@@ -1127,10 +1212,56 @@ export default {
 
     this.loadHistory();
 
+    this.loadTrash();
+
+    document.addEventListener('click', this.closeSuggestions);
+
+  },
+
+
+  beforeUnmount() {
+
+    document.removeEventListener('click', this.closeSuggestions);
+
+    clearTimeout(this.searchTimer);
+
+    clearTimeout(this.suggestionTimer);
+
   },
 
 
   methods: {
+
+    closeSuggestions(event) {
+      if (!event.target.closest('.filter-field')) {
+        this.showSuggestions = false;
+      }
+    },
+
+    loadSuggestions() {
+      const search = this.filters.search.trim();
+
+      if (!search) {
+        this.searchSuggestions = [];
+        this.showSuggestions = false;
+        return;
+      }
+
+      axios.get('/products/suggestions', { params: { search } })
+        .then(res => {
+          this.searchSuggestions = res.data;
+          this.showSuggestions = true;
+        })
+        .catch(() => {
+          this.searchSuggestions = [];
+        });
+    },
+
+    selectSuggestion(suggestion) {
+      this.filters.search = suggestion.name;
+      this.showSuggestions = false;
+      this.loadProducts(1);
+    },
 
     /*
     |--------------------------------------------------------------------------
@@ -1249,6 +1380,11 @@ export default {
           this.loadProducts(1);
 
         }, 400);
+
+        clearTimeout(this.suggestionTimer);
+        this.suggestionTimer = setTimeout(() => {
+          this.loadSuggestions();
+        }, 220);
 
     },
 
@@ -1848,6 +1984,10 @@ export default {
       const params =
         new URLSearchParams();
 
+      this.selectedProducts.forEach(id => {
+        params.append('ids[]', id);
+      });
+
       if (this.filters.search) {
 
         params.append(
@@ -1914,6 +2054,25 @@ export default {
 
     },
 
+    loadTrash() {
+      axios.get('/products/trash')
+        .then(res => {
+          this.trashProducts = res.data;
+        })
+        .catch(error => console.error('TRASH ERROR:', error));
+    },
+
+    restoreProduct(id) {
+      axios.post(`/products/restore/${id}`)
+        .then(res => {
+          this.message = res.data.message;
+          this.loadProducts(1);
+          this.loadTrash();
+          setTimeout(() => { this.message = ''; }, 3000);
+        })
+        .catch(() => alert('Unable to restore product.'));
+    },
+
 
     /*
     |--------------------------------------------------------------------------
@@ -1956,6 +2115,10 @@ export default {
 
         });
 
+    },
+
+    toggleHistoryDetails(id) {
+      this.expandedHistoryId = this.expandedHistoryId === id ? null : id;
     },
 
 
@@ -2696,6 +2859,115 @@ td {
 
 }
 
+.filter-field {
+  position: relative;
+}
+
+.suggestions {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  overflow: hidden;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 25px rgba(15, 23, 42, 0.12);
+}
+
+.suggestion-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 13px;
+  border: 0;
+  border-bottom: 1px solid #eef2f7;
+  background: #fff;
+  color: #1e293b;
+  cursor: pointer;
+  text-align: left;
+}
+
+.suggestion-item:last-child {
+  border-bottom: 0;
+}
+
+.suggestion-item:hover {
+  background: #f0f9ff;
+}
+
+.suggestion-item span:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.suggestion-item small,
+.trash-item small {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.icon-btn:hover {
+  border-color: #0284c7;
+  color: #0284c7;
+}
+
+.history-details td {
+  padding: 14px 20px;
+  background: #f8fafc;
+  text-align: left;
+}
+
+.history-details pre {
+  max-height: 180px;
+  margin: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  color: #475569;
+  font: inherit;
+  font-size: 12px;
+}
+
+.trash-list {
+  display: grid;
+  gap: 8px;
+}
+
+.trash-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #fee2e2;
+  border-radius: 8px;
+  background: #fffafa;
+}
+
+.trash-item span {
+  display: grid;
+  gap: 3px;
+}
+
+.trash-card {
+  border-top: 3px solid #f97316;
+}
+
 
 /* =========================================================
    HISTORY BADGES
@@ -2812,6 +3084,12 @@ td {
 
     align-items: stretch;
 
+  }
+
+  .section-header,
+  .trash-item {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   table {

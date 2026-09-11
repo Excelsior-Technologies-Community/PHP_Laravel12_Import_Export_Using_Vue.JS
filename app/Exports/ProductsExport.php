@@ -23,13 +23,19 @@ class ProductsExport implements FromQuery, WithHeadings, WithMapping
     {
         $query = Product::query();
 
+        $hasSelection = !empty($this->filters['ids']);
+
+        if ($hasSelection) {
+            $query->whereIn('id', $this->filters['ids']);
+        }
+
         /*
         |--------------------------------------------------------------------------
         | Search
         |--------------------------------------------------------------------------
         */
 
-        if (!empty($this->filters['search'])) {
+        if (!$hasSelection && !empty($this->filters['search'])) {
             $search = $this->filters['search'];
 
             $query->where(function ($q) use ($search) {
@@ -44,7 +50,7 @@ class ProductsExport implements FromQuery, WithHeadings, WithMapping
         |--------------------------------------------------------------------------
         */
 
-        if (
+        if (!$hasSelection &&
             isset($this->filters['min_price']) &&
             $this->filters['min_price'] !== ''
         ) {
@@ -61,7 +67,7 @@ class ProductsExport implements FromQuery, WithHeadings, WithMapping
         |--------------------------------------------------------------------------
         */
 
-        if (
+        if (!$hasSelection &&
             isset($this->filters['max_price']) &&
             $this->filters['max_price'] !== ''
         ) {
@@ -78,7 +84,7 @@ class ProductsExport implements FromQuery, WithHeadings, WithMapping
         |--------------------------------------------------------------------------
         */
 
-        if (!empty($this->filters['stock_status'])) {
+        if (!$hasSelection && !empty($this->filters['stock_status'])) {
 
             switch ($this->filters['stock_status']) {
 
